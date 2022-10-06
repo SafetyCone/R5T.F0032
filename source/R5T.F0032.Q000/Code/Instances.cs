@@ -1,7 +1,7 @@
 using System;
 
 
-namespace R5T.F0032
+namespace R5T.F0032.Q000
 {
     public static class Instances
     {
