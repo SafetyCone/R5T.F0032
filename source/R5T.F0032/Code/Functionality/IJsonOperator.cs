@@ -22,6 +22,16 @@ namespace R5T.F0032
         private static Internal.IJsonOperator Internal { get; } = F0032.Internal.JsonOperator.Instance;
 
 
+        public T ParseFromJsonText<T>(string jsonText, string keyName)
+        {
+            var jObject = Internal.ParseAsJObject(jsonText);
+
+            var keyedJObject = jObject[keyName];
+
+            var output = keyedJObject.ToObject<T>();
+            return output;
+        }
+
         public async Task<T> LoadFromFile<T>(string jsonFilePath, string keyName)
         {
             var jObject = await Internal.LoadAsJObject(jsonFilePath);
@@ -87,6 +97,24 @@ namespace R5T.F0032
             jsonSerializer.Serialize(streamWriter, value);
         }
 
+        public async Task Serialize<T>(JsonSerializer jsonSerializer, string jsonFilePath, T value, bool overwrite = true)
+        {
+            using var memoryStream = new MemoryStream();
+            using var streamWriter = new StreamWriter(memoryStream)
+            {
+                AutoFlush = true,
+            };
+
+            jsonSerializer.Serialize(streamWriter, value);
+
+            // Reset.
+            memoryStream.Seek(0, SeekOrigin.Begin);
+
+            using var fileStream = F0000.FileStreamOperator.Instance.NewWrite(jsonFilePath, overwrite);
+            
+            await memoryStream.CopyToAsync(fileStream);
+        }
+
         /// <summary>
         /// Serialize an object to a file.
         /// <inheritdoc cref="Serialize_Synchronous{T}(JsonSerializer, string, T, bool)" path="/summary/only-properties-have-keys"/>
@@ -96,6 +124,13 @@ namespace R5T.F0032
             var jsonSerializer = Internal.GetJsonSerializer();
 
             this.Serialize_Synchronous<T>(jsonSerializer, jsonFilePath, value, overwrite);
+        }
+
+        public Task Serialize<T>(string jsonFilePath, T value, bool overwrite = true)
+        {
+            var jsonSerializer = Internal.GetJsonSerializer();
+
+            return this.Serialize(jsonSerializer, jsonFilePath, value, overwrite);
         }
 
         public void Serialize_Synchronous(string jsonFilePath, JObject jObject, bool overwrite = true)
@@ -112,9 +147,11 @@ namespace R5T.F0032
         /// Deserialize an object from a file.
         /// <inheritdoc cref="Serialize_Synchronous{T}(JsonSerializer, string, T, bool)" path="/summary/only-properties-have-keys"/>
         /// </summary>
-        public T Deserialize_Synchronous<T>(JsonSerializer jsonSerializer, string jsonFilePath)
+        public async Task<T> Deserialize<T>(JsonSerializer jsonSerializer, string jsonFilePath)
         {
-            using var textReader = File.OpenText(jsonFilePath);
+            var memoryStream = await Instances.MemoryStreamOperator.FromFile(jsonFilePath);
+
+            using var textReader = F0000.StreamReaderOperator.Instance.From(memoryStream);
             using var jsonReader = new JsonTextReader(textReader);
 
             var value = jsonSerializer.Deserialize<T>(jsonReader);
@@ -125,6 +162,16 @@ namespace R5T.F0032
         /// Deserialize an object from a file.
         /// <inheritdoc cref="Serialize_Synchronous{T}(JsonSerializer, string, T, bool)" path="/summary/only-properties-have-keys"/>
         /// </summary>
+        public T Deserialize_Synchronous<T>(JsonSerializer jsonSerializer, string jsonFilePath)
+        {
+            using var textReader = File.OpenText(jsonFilePath);
+            using var jsonReader = new JsonTextReader(textReader);
+
+            var value = jsonSerializer.Deserialize<T>(jsonReader);
+            return value;
+        }
+
+        /// <inheritdoc cref="Deserialize{T}(string)"/>
         public T Deserialize_Synchronous<T>(string jsonFilePath)
         {
             var jsonSerializer = Internal.GetJsonSerializer();
@@ -135,6 +182,19 @@ namespace R5T.F0032
 
             return output;
         }
+
+        /// <summary>
+        /// Deserialize an object from a file.
+        /// <inheritdoc cref="Serialize_Synchronous{T}(JsonSerializer, string, T, bool)" path="/summary/only-properties-have-keys"/>
+        /// </summary>
+        public Task<T> Deserialize<T>(string jsonFilePath)
+        {
+            var jsonSerializer = Internal.GetJsonSerializer();
+
+            return this.Deserialize<T>(
+                jsonSerializer,
+                jsonFilePath);
+        }
     }
 
 
@@ -142,6 +202,12 @@ namespace R5T.F0032
     {
         public partial interface IJsonOperator : IDraftFunctionalityMarker
         {
+            public JObject ParseAsJObject(string jsonText)
+            {
+                var output = JObject.Parse(jsonText);
+                return output;
+            }
+
             public JsonSerializer GetJsonSerializer(Formatting formatting = Formatting.Indented)
             {
                 var jsonSerializer = new JsonSerializer
