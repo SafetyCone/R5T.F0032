@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Newtonsoft.Json;
@@ -32,6 +34,9 @@ namespace R5T.F0032
             return output;
         }
 
+        /// <summary>
+        /// <inheritdoc cref="Documentation.LoadMeansRootObjectUsesKey" path="/summary"/>
+        /// </summary>
         public async Task<T> LoadFromFile<T>(string jsonFilePath, string keyName)
         {
             var jObject = await Internal.LoadAsJObject(jsonFilePath);
@@ -42,6 +47,9 @@ namespace R5T.F0032
             return output;
         }
 
+        /// <summary>
+        /// <inheritdoc cref="Documentation.LoadMeansRootObjectUsesKey" path="/summary"/>
+        /// </summary>
         public T LoadFromFile_Synchronous<T>(string jsonFilePath, string keyName)
         {
             var jObject = Internal.LoadAsJObject_Synchronous(jsonFilePath);
@@ -76,6 +84,7 @@ namespace R5T.F0032
         /// <summary>
         /// Loads an object from a file, using the type name of the type parameter as the key.
         /// <type-name-is-key>The type name of the type parameters is used as the top-level key.</type-name-is-key>
+        /// <inheritdoc cref="Documentation.LoadMeansRootObjectUsesKey" path="/summary"/>
         /// </summary>
         public T LoadFromFile_Synchronous<T>(string jsonFilePath)
         {
@@ -133,6 +142,12 @@ namespace R5T.F0032
             return this.Serialize(jsonSerializer, jsonFilePath, value, overwrite);
         }
 
+        public JObject SerializeToJObject<T>(T value)
+        {
+            var jObject = JObject.FromObject(value);
+            return jObject;
+        }
+
         public void Serialize_Synchronous(string jsonFilePath, JObject jObject, bool overwrite = true)
         {
             using var fileStream = F0000.FileStreamOperator.Instance.NewWrite(jsonFilePath, overwrite);
@@ -171,6 +186,19 @@ namespace R5T.F0032
             return value;
         }
 
+        /// <summary>
+        /// Deserialize an object from a stream.
+        /// <inheritdoc cref="Serialize_Synchronous{T}(JsonSerializer, string, T, bool)" path="/summary/only-properties-have-keys"/>
+        /// </summary>
+        public T Deserialize_Synchronous<T>(JsonSerializer jsonSerializer, Stream stream)
+        {
+            using var textReader = F0000.StreamReaderOperator.Instance.From(stream);
+            using var jsonReader = new JsonTextReader(textReader);
+
+            var value = jsonSerializer.Deserialize<T>(jsonReader);
+            return value;
+        }
+
         /// <inheritdoc cref="Deserialize{T}(string)"/>
         public T Deserialize_Synchronous<T>(string jsonFilePath)
         {
@@ -179,6 +207,18 @@ namespace R5T.F0032
             var output = this.Deserialize_Synchronous<T>(
                 jsonSerializer,
                 jsonFilePath);
+
+            return output;
+        }
+
+        /// <inheritdoc cref="Deserialize{T}(string)"/>
+        public T Deserialize_Synchronous<T>(Stream stream)
+        {
+            var jsonSerializer = Internal.GetJsonSerializer();
+
+            var output = this.Deserialize_Synchronous<T>(
+                jsonSerializer,
+                stream);
 
             return output;
         }
@@ -194,6 +234,53 @@ namespace R5T.F0032
             return this.Deserialize<T>(
                 jsonSerializer,
                 jsonFilePath);
+        }
+
+        public object Deserialize_FromJObject(Type type, JObject jObject)
+        {
+            var output = jObject.ToObject(type);
+            return output;
+        }
+
+        /// <summary>
+        /// Deserialize the JObject as the <paramref name="type"/>, but then cast to the <typeparamref name="T"/> type.
+        /// </summary>
+        public T Deserialize_FromJObjectAs<T>(Type type, JObject jObject)
+            where T : class
+        {
+            var output = jObject.ToObject(type) as T;
+            return output;
+        }
+
+        public T Deserialize_FromJObject<T>(JObject jObject)
+        {
+            var output = jObject.ToObject<T>();
+            return output;
+        }
+
+        public IEnumerable<T> DeserializeSerializationTypes<T>(
+            Type[] types,
+            IEnumerable<SerializationType> serializationTypes)
+            where T : class
+        {
+            var typesByTypeFullName = types
+                .ToDictionary(
+                    type => type.FullName,
+                    type => type);
+
+            var output = serializationTypes
+                .Select(x =>
+                {
+                    var typeForInstance = typesByTypeFullName[x.TypeName];
+
+                    var instance = Instances.JsonOperator.Deserialize_FromJObjectAs<T>(
+                        typeForInstance,
+                        x.Object);
+
+                    return instance;
+                });
+
+            return output;
         }
     }
 
