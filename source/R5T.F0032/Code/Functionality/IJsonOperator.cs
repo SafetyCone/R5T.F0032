@@ -34,6 +34,13 @@ namespace R5T.F0032
             return output;
         }
 
+        public async Task<JObject> Deserialize(string jsonFilePath)
+        {
+            var jObject = await Internal.LoadAsJObject(jsonFilePath);
+
+            return jObject;
+        }
+
         /// <summary>
         /// <inheritdoc cref="Documentation.LoadMeansRootObjectUsesKey" path="/summary"/>
         /// </summary>
