@@ -107,7 +107,7 @@ namespace R5T.F0032
         /// </summary>
         public void Serialize_Synchronous<T>(JsonSerializer jsonSerializer, string jsonFilePath, T value, bool overwrite = true)
         {
-            using var fileStream = F0000.FileStreamOperator.Instance.NewWrite(jsonFilePath, overwrite);
+            using var fileStream = F0000.FileStreamOperator.Instance.Open_Write(jsonFilePath, overwrite);
             using var streamWriter = new StreamWriter(fileStream);
 
             jsonSerializer.Serialize(streamWriter, value);
@@ -126,7 +126,7 @@ namespace R5T.F0032
             // Reset.
             memoryStream.Seek(0, SeekOrigin.Begin);
 
-            using var fileStream = F0000.FileStreamOperator.Instance.NewWrite(jsonFilePath, overwrite);
+            using var fileStream = F0000.FileStreamOperator.Instance.Open_Write(jsonFilePath, overwrite);
             
             await memoryStream.CopyToAsync(fileStream);
         }
@@ -157,7 +157,7 @@ namespace R5T.F0032
 
         public void Serialize_Synchronous(string jsonFilePath, JObject jObject, bool overwrite = true)
         {
-            using var fileStream = F0000.FileStreamOperator.Instance.NewWrite(jsonFilePath, overwrite);
+            using var fileStream = F0000.FileStreamOperator.Instance.Open_Write(jsonFilePath, overwrite);
             using var streamWriter = new StreamWriter(fileStream);
 
             var jsonSerializer = Internal.GetJsonSerializer();
